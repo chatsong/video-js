@@ -1572,18 +1572,37 @@
 </script>
 <script>
 (function() {
-  function initChatsongMedia() {
-    
-    // --- SELECTEER ALLE BERICHTEN (Posts, DMs en Reacties) ---
-    const messageContainers = document.querySelectorAll('.Post-body, .PrivateMessage-body, .MessageBody, .item-content');
+  function convertMediaPreviews() {
+    // Selecteer alle berichten, reacties en privéberichten (DMs)
+    const containers = document.querySelectorAll('.Post-body, .PrivateMessage-body, .MessageBody, .item-content');
 
-    messageContainers.forEach(container => {
+    containers.forEach(container => {
       
-      // --- 1. YOUTUBE SHORTS AUTOMATISCH OMZETTEN NAAR IFRAME ---
-      const ytShortsLinks = container.querySelectorAll('a[href*="youtube.com/shorts/"], a[href*="youtu.be/"]');
-      ytShortsLinks.forEach(link => {
-        if (link.dataset.embedDone || link.closest('iframe')) return;
-        
+      // --- 1. SOUNDCLOUD (Inclusief on.soundcloud.com deellinks & LinkPreview kaarten) ---
+      const scTargets = container.querySelectorAll('a[href*="soundcloud.com"], .LinkPreview a[href*="soundcloud.com"]');
+      scTargets.forEach(link => {
+        const url = link.href;
+        const previewBox = link.closest('.LinkPreview') || link;
+        if (previewBox.dataset.mediaConverted) return;
+
+        previewBox.dataset.mediaConverted = "true";
+
+        const iframe = document.createElement('iframe');
+        iframe.src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%238a2be2&auto_play=false&hide_related=true&show_comments=true&show_user=true&show_reposts=false&show_teaser=false`;
+        iframe.style.cssText = 'width: 100%; max-width: 100%; height: 166px; border-radius: 12px; border: none; margin: 10px 0; background: transparent; display: block;';
+        iframe.setAttribute('scrolling', 'no');
+        iframe.setAttribute('frameborder', 'no');
+        iframe.setAttribute('allow', 'autoplay');
+
+        previewBox.parentNode.replaceChild(iframe, previewBox);
+      });
+
+      // --- 2. YOUTUBE SHORTS & MOBLIE DEELLINKS (youtu.be / youtube.com/shorts) ---
+      const ytTargets = container.querySelectorAll('a[href*="youtube.com/shorts/"], a[href*="youtu.be/"], .LinkPreview a[href*="youtube.com/shorts/"], .LinkPreview a[href*="youtu.be/"]');
+      ytTargets.forEach(link => {
+        const previewBox = link.closest('.LinkPreview') || link;
+        if (previewBox.dataset.mediaConverted) return;
+
         let videoId = null;
         if (link.href.includes('/shorts/')) {
           videoId = link.href.split('/shorts/')[1].split('?')[0].split('/')[0];
@@ -1592,74 +1611,67 @@
         }
 
         if (videoId) {
-          link.dataset.embedDone = "true";
+          previewBox.dataset.mediaConverted = "true";
           const iframe = document.createElement('iframe');
           iframe.src = `https://www.youtube.com/embed/${videoId}`;
-          iframe.style.cssText = 'width: 100%; max-width: 340px; height: 600px; border-radius: 12px; border: none; margin: 10px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: block;';
+          iframe.style.cssText = 'width: 100%; max-width: 340px; height: 580px; border-radius: 12px; border: none; margin: 10px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: block;';
           iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
           iframe.setAttribute('allowfullscreen', 'true');
-          link.parentNode.replaceChild(iframe, link);
+
+          previewBox.parentNode.replaceChild(iframe, previewBox);
         }
       });
 
-      // --- 2. TIKTOK AUTOMATISCH OMZETTEN NAAR IFRAME ---
-      const tiktokLinks = container.querySelectorAll('a[href*="tiktok.com/"]');
-      tiktokLinks.forEach(link => {
-        if (link.dataset.embedDone || link.closest('iframe')) return;
-        const matches = link.href.match(/video\/(\d+)/);
+      // --- 3. TIKTOK SHORTS & MOBIELE DEELLINKS ---
+      const tiktokTargets = container.querySelectorAll('a[href*="tiktok.com/"], .LinkPreview a[href*="tiktok.com/"]');
+      tiktokTargets.forEach(link => {
+        const previewBox = link.closest('.LinkPreview') || link;
+        if (previewBox.dataset.mediaConverted) return;
+
+        const matches = link.href.match(/video\/(\d+)/) || link.href.match(/\/v\/(\d+)/);
         if (matches && matches[1]) {
           const videoId = matches[1];
-          link.dataset.embedDone = "true";
+          previewBox.dataset.mediaConverted = "true";
+
           const iframe = document.createElement('iframe');
           iframe.src = `https://www.tiktok.com/embed/v2/${videoId}`;
           iframe.style.cssText = 'width: 100%; max-width: 325px; height: 580px; border-radius: 12px; border: none; margin: 10px 0; display: block;';
-          link.parentNode.replaceChild(iframe, link);
+
+          previewBox.parentNode.replaceChild(iframe, previewBox);
         }
       });
 
-      // --- 3. SOUNDCLOUD LINKS AUTOMATISCH OMZETTEN NAAR INSLUITENDE SPELER ---
-      const scLinks = container.querySelectorAll('a[href*="soundcloud.com/"]');
-      scLinks.forEach(link => {
-        if (link.dataset.scDone || link.closest('iframe') || link.closest('.AudioPlayer')) return;
-        
-        const href = link.href;
-        if (href.includes('/') && href.split('/').length > 3) {
-          link.dataset.scDone = "true";
-          
+      // --- 4. SPOTIFY (Tracks, Albums, Playlists & Podcasts) ---
+      const spotifyTargets = container.querySelectorAll('a[href*="open.spotify.com/"], .LinkPreview a[href*="open.spotify.com/"]');
+      spotifyTargets.forEach(link => {
+        const previewBox = link.closest('.LinkPreview') || link;
+        if (previewBox.dataset.mediaConverted) return;
+
+        const url = link.href;
+        // Zet de normale Spotify URL om naar de officiële Embed URL
+        if (url.includes('open.spotify.com/')) {
+          previewBox.dataset.mediaConverted = "true";
+          const embedUrl = url.replace('open.spotify.com/', 'open.spotify.com/embed/');
+
           const iframe = document.createElement('iframe');
-          iframe.src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(href)}&color=%238a2be2&auto_play=false&hide_related=true&show_comments=true&show_user=true&show_reposts=false&show_teaser=false`;
-          iframe.style.cssText = 'width: 100%; max-width: 100%; height: 166px; border-radius: 12px; border: none; margin: 10px 0; background: transparent; display: block;';
-          iframe.setAttribute('scrolling', 'no');
-          iframe.setAttribute('frameborder', 'no');
-          iframe.setAttribute('allow', 'autoplay');
-          
-          link.parentNode.replaceChild(iframe, link);
+          iframe.src = embedUrl;
+          iframe.style.cssText = 'width: 100%; max-width: 100%; height: 152px; border-radius: 12px; border: none; margin: 10px 0; display: block;';
+          iframe.setAttribute('allow', 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture');
+          iframe.setAttribute('loading', 'lazy');
+
+          previewBox.parentNode.replaceChild(iframe, previewBox);
         }
       });
 
-      // --- 4. BESTAANDE AUDIO & MEDIA FRAMES OPTIMALISEREN ---
-      const scFrames = container.querySelectorAll('iframe[src*="soundcloud.com"], .MediaBox iframe, .AudioPlayer iframe');
-      scFrames.forEach(frame => {
-        frame.style.width = '100%';
-        frame.style.maxWidth = '100%';
-        frame.style.borderRadius = '12px';
-        if (!frame.style.height || frame.style.height === '166px') {
-          frame.style.height = '166px';
-        }
-      });
     });
-
-    // --- INSTAGRAM EMBEDS HERLADEN ---
-    if (window.instgrm && window.instgrm.Embeds) {
-      window.instgrm.Embeds.process();
-    }
   }
 
-  // Activeer direct en bij Flarum navigatie
-  document.addEventListener('DOMContentLoaded', initChatsongMedia);
-  window.addEventListener('flarum:page:changed', initChatsongMedia);
+  // Uitvoeren bij het laden én bij elke Flarum pagina/DM-wisseling
+  document.addEventListener('DOMContentLoaded', convertMediaPreviews);
+  window.addEventListener('flarum:page:changed', convertMediaPreviews);
 
-  const observer = new MutationObserver(initChatsongMedia);
+  // Observer pakt ook dynamisch binnenkomende berichten en chat-updates op
+  const observer = new MutationObserver(convertMediaPreviews);
   window.addEventListener('load', () => {
     const target = document.getElementById('app') || document.body;
     if (target) {
