@@ -1572,26 +1572,23 @@
 </script>
 
 
-<script>
 (function() {
-  function convertMediaPreviews() {
-    const containers = document.querySelectorAll('.Post-body, .PrivateMessage-body, .MessageBody, .item-content');
+  function convertAllMediaLinks() {
+    const containers = document.querySelectorAll('.Post-body, .PrivateMessage-body, .MessageBody, .item-content, .Comment');
 
     containers.forEach(container => {
       
-      // --- SOUNDCLOUD ULTIEME FIX VOOR ALLE URL'S & FOUTMELDINGEN ---
-      const scLinks = container.querySelectorAll('a[href*="soundcloud.com"], .LinkPreview a[href*="soundcloud.com"], iframe[src*="soundcloud.com"]');
-      
-      scLinks.forEach(el => {
-        let url = el.href || el.src;
+      // --- 1. SOUNDCLOUD FIX ---
+      const scElements = container.querySelectorAll('a[href*="soundcloud.com"], .LinkPreview a[href*="soundcloud.com"], iframe[src*="soundcloud.com"]');
+      scElements.forEach(el => {
+        let rawUrl = el.href || el.src;
         const targetBox = el.closest('.LinkPreview') || el.closest('iframe') || el;
         
-        if (!url || targetBox.dataset.scFixed) return;
-        targetBox.dataset.scFixed = "true";
+        if (!rawUrl || targetBox.dataset.mediaDone) return;
+        targetBox.dataset.mediaDone = "true";
 
-        // Maak een gloednieuwe, schone iframe aan die de juiste parameters meestuurt
         const iframe = document.createElement('iframe');
-        iframe.src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%238a2be2&auto_play=false&hide_related=true&show_comments=true&show_user=true&show_reposts=false&show_teaser=false`;
+        iframe.src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(rawUrl)}&color=%238a2be2&auto_play=false&hide_related=true&show_comments=true&show_user=true&show_reposts=false&show_teaser=false`;
         iframe.style.cssText = 'width: 100%; max-width: 100%; height: 166px; border-radius: 12px; border: none; margin: 10px 0; background: transparent; display: block;';
         iframe.setAttribute('scrolling', 'no');
         iframe.setAttribute('frameborder', 'no');
@@ -1602,78 +1599,90 @@
         }
       });
 
-      // --- YOUTUBE SHORTS ---
-      const ytTargets = container.querySelectorAll('a[href*="youtube.com/shorts/"], a[href*="youtu.be/"], .LinkPreview a[href*="youtube.com/shorts/"], .LinkPreview a[href*="youtu.be/"]');
-      ytTargets.forEach(link => {
-        const previewBox = link.closest('.LinkPreview') || link;
-        if (previewBox.dataset.mediaConverted) return;
+      // --- 2. YOUTUBE SHORTS ---
+      const ytElements = container.querySelectorAll('a[href*="youtube.com/shorts/"], a[href*="youtu.be/"], .LinkPreview a[href*="youtube.com/shorts/"], .LinkPreview a[href*="youtu.be/"]');
+      ytElements.forEach(link => {
+        const targetBox = link.closest('.LinkPreview') || link;
+        if (targetBox.dataset.mediaDone) return;
 
         let videoId = null;
-        if (link.href.includes('/shorts/')) {
-          videoId = link.href.split('/shorts/')[1].split('?')[0].split('/')[0];
-        } else if (link.href.includes('youtu.be/')) {
-          videoId = link.href.split('youtu.be/')[1].split('?')[0].split('/')[0];
+        const href = link.href;
+
+        if (href.includes('/shorts/')) {
+          videoId = href.split('/shorts/')[1].split('?')[0].split('/')[0];
+        } else if (href.includes('youtu.be/')) {
+          videoId = href.split('youtu.be/')[1].split('?')[0].split('/')[0];
         }
 
         if (videoId) {
-          previewBox.dataset.mediaConverted = "true";
+          targetBox.dataset.mediaDone = "true";
           const iframe = document.createElement('iframe');
           iframe.src = `https://www.youtube.com/embed/${videoId}`;
           iframe.style.cssText = 'width: 100%; max-width: 340px; height: 580px; border-radius: 12px; border: none; margin: 10px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: block;';
           iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
           iframe.setAttribute('allowfullscreen', 'true');
 
-          previewBox.parentNode.replaceChild(iframe, previewBox);
+          if (targetBox.parentNode) {
+            targetBox.parentNode.replaceChild(iframe, targetBox);
+          }
         }
       });
 
-      // --- TIKTOK ---
-      const tiktokTargets = container.querySelectorAll('a[href*="tiktok.com/"], .LinkPreview a[href*="tiktok.com/"]');
-      tiktokTargets.forEach(link => {
-        const previewBox = link.closest('.LinkPreview') || link;
-        if (previewBox.dataset.mediaConverted) return;
+      // --- 3. TIKTOK ---
+      const tiktokElements = container.querySelectorAll('a[href*="tiktok.com/"], .LinkPreview a[href*="tiktok.com/"]');
+      tiktokElements.forEach(link => {
+        const targetBox = link.closest('.LinkPreview') || link;
+        if (targetBox.dataset.mediaDone) return;
 
         const matches = link.href.match(/video\/(\d+)/) || link.href.match(/\/v\/(\d+)/);
         if (matches && matches[1]) {
           const videoId = matches[1];
-          previewBox.dataset.mediaConverted = "true";
+          targetBox.dataset.mediaDone = "true";
 
           const iframe = document.createElement('iframe');
           iframe.src = `https://www.tiktok.com/embed/v2/${videoId}`;
           iframe.style.cssText = 'width: 100%; max-width: 325px; height: 580px; border-radius: 12px; border: none; margin: 10px 0; display: block;';
 
-          previewBox.parentNode.replaceChild(iframe, previewBox);
+          if (targetBox.parentNode) {
+            targetBox.parentNode.replaceChild(iframe, targetBox);
+          }
         }
       });
 
-      // --- SPOTIFY ---
-      const spotifyTargets = container.querySelectorAll('a[href*="open.spotify.com/"], .LinkPreview a[href*="open.spotify.com/"]');
-      spotifyTargets.forEach(link => {
-        const previewBox = link.closest('.LinkPreview') || link;
-        if (previewBox.dataset.mediaConverted) return;
+      // --- 4. SPOTIFY ---
+      const spotifyElements = container.querySelectorAll('a[href*="open.spotify.com/"], .LinkPreview a[href*="open.spotify.com/"]');
+      spotifyElements.forEach(link => {
+        const targetBox = link.closest('.LinkPreview') || link;
+        if (targetBox.dataset.mediaDone) return;
 
-        const url = link.href;
+        let url = link.href;
         if (url.includes('open.spotify.com/')) {
-          previewBox.dataset.mediaConverted = "true";
-          const embedUrl = url.replace('open.spotify.com/', 'open.spotify.com/embed/');
+          targetBox.dataset.mediaDone = "true";
+          
+          let cleanUrl = url.split('?')[0];
+          const embedUrl = cleanUrl.replace('open.spotify.com/', 'open.spotify.com/embed/');
 
           const iframe = document.createElement('iframe');
           iframe.src = embedUrl;
-          iframe.style.cssText = 'width: 100%; max-width: 100%; height: 152px; border-radius: 12px; border: none; margin: 10px 0; display: block;';
+          const frameHeight = embedUrl.includes('/concert/') || embedUrl.includes('/album/') || embedUrl.includes('/playlist/') ? '380px' : '152px';
+          
+          iframe.style.cssText = `width: 100%; max-width: 100%; height: ${frameHeight}; border-radius: 12px; border: none; margin: 10px 0; display: block;`;
           iframe.setAttribute('allow', 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture');
           iframe.setAttribute('loading', 'lazy');
 
-          previewBox.parentNode.replaceChild(iframe, previewBox);
+          if (targetBox.parentNode) {
+            targetBox.parentNode.replaceChild(iframe, targetBox);
+          }
         }
       });
 
     });
   }
 
-  document.addEventListener('DOMContentLoaded', convertMediaPreviews);
-  window.addEventListener('flarum:page:changed', convertMediaPreviews);
+  document.addEventListener('DOMContentLoaded', convertAllMediaLinks);
+  window.addEventListener('flarum:page:changed', convertAllMediaLinks);
 
-  const observer = new MutationObserver(convertMediaPreviews);
+  const observer = new MutationObserver(convertAllMediaLinks);
   window.addEventListener('load', () => {
     const target = document.getElementById('app') || document.body;
     if (target) {
@@ -1681,4 +1690,3 @@
     }
   });
 })();
-</script>
