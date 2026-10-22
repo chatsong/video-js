@@ -1570,23 +1570,26 @@
   });
 })();
 </script>
+
+
 <script>
 (function() {
   function convertMediaPreviews() {
-    // Selecteer alle berichten, reacties en privéberichten (DMs)
     const containers = document.querySelectorAll('.Post-body, .PrivateMessage-body, .MessageBody, .item-content');
 
     containers.forEach(container => {
       
-      // --- 1. SOUNDCLOUD (Inclusief on.soundcloud.com deellinks & LinkPreview kaarten) ---
-      const scTargets = container.querySelectorAll('a[href*="soundcloud.com"], .LinkPreview a[href*="soundcloud.com"]');
-      scTargets.forEach(link => {
-        const url = link.href;
-        const previewBox = link.closest('.LinkPreview') || link;
-        if (previewBox.dataset.mediaConverted) return;
+      // --- SOUNDCLOUD ULTIEME FIX VOOR ALLE URL'S & FOUTMELDINGEN ---
+      const scLinks = container.querySelectorAll('a[href*="soundcloud.com"], .LinkPreview a[href*="soundcloud.com"], iframe[src*="soundcloud.com"]');
+      
+      scLinks.forEach(el => {
+        let url = el.href || el.src;
+        const targetBox = el.closest('.LinkPreview') || el.closest('iframe') || el;
+        
+        if (!url || targetBox.dataset.scFixed) return;
+        targetBox.dataset.scFixed = "true";
 
-        previewBox.dataset.mediaConverted = "true";
-
+        // Maak een gloednieuwe, schone iframe aan die de juiste parameters meestuurt
         const iframe = document.createElement('iframe');
         iframe.src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%238a2be2&auto_play=false&hide_related=true&show_comments=true&show_user=true&show_reposts=false&show_teaser=false`;
         iframe.style.cssText = 'width: 100%; max-width: 100%; height: 166px; border-radius: 12px; border: none; margin: 10px 0; background: transparent; display: block;';
@@ -1594,10 +1597,12 @@
         iframe.setAttribute('frameborder', 'no');
         iframe.setAttribute('allow', 'autoplay');
 
-        previewBox.parentNode.replaceChild(iframe, previewBox);
+        if (targetBox.parentNode) {
+          targetBox.parentNode.replaceChild(iframe, targetBox);
+        }
       });
 
-      // --- 2. YOUTUBE SHORTS & MOBLIE DEELLINKS (youtu.be / youtube.com/shorts) ---
+      // --- YOUTUBE SHORTS ---
       const ytTargets = container.querySelectorAll('a[href*="youtube.com/shorts/"], a[href*="youtu.be/"], .LinkPreview a[href*="youtube.com/shorts/"], .LinkPreview a[href*="youtu.be/"]');
       ytTargets.forEach(link => {
         const previewBox = link.closest('.LinkPreview') || link;
@@ -1622,7 +1627,7 @@
         }
       });
 
-      // --- 3. TIKTOK SHORTS & MOBIELE DEELLINKS ---
+      // --- TIKTOK ---
       const tiktokTargets = container.querySelectorAll('a[href*="tiktok.com/"], .LinkPreview a[href*="tiktok.com/"]');
       tiktokTargets.forEach(link => {
         const previewBox = link.closest('.LinkPreview') || link;
@@ -1641,14 +1646,13 @@
         }
       });
 
-      // --- 4. SPOTIFY (Tracks, Albums, Playlists & Podcasts) ---
+      // --- SPOTIFY ---
       const spotifyTargets = container.querySelectorAll('a[href*="open.spotify.com/"], .LinkPreview a[href*="open.spotify.com/"]');
       spotifyTargets.forEach(link => {
         const previewBox = link.closest('.LinkPreview') || link;
         if (previewBox.dataset.mediaConverted) return;
 
         const url = link.href;
-        // Zet de normale Spotify URL om naar de officiële Embed URL
         if (url.includes('open.spotify.com/')) {
           previewBox.dataset.mediaConverted = "true";
           const embedUrl = url.replace('open.spotify.com/', 'open.spotify.com/embed/');
@@ -1666,11 +1670,9 @@
     });
   }
 
-  // Uitvoeren bij het laden én bij elke Flarum pagina/DM-wisseling
   document.addEventListener('DOMContentLoaded', convertMediaPreviews);
   window.addEventListener('flarum:page:changed', convertMediaPreviews);
 
-  // Observer pakt ook dynamisch binnenkomende berichten en chat-updates op
   const observer = new MutationObserver(convertMediaPreviews);
   window.addEventListener('load', () => {
     const target = document.getElementById('app') || document.body;
