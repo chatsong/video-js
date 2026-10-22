@@ -1570,80 +1570,54 @@
   });
 })();
 </script>
-
+<script>
 (function() {
   function initChatsongMedia() {
     
-    // --- 1. SELECTEER ALLE BERICHTEN (Posts, DMs en Reacties) ---
+    // --- SELECTEER ALLE BERICHTEN (Posts, DMs en Reacties) ---
     const messageContainers = document.querySelectorAll('.Post-body, .PrivateMessage-body, .MessageBody, .item-content');
 
     messageContainers.forEach(container => {
       
-      // --- A. PLYR VIDEOSPELER (MP4) ---
-      const fofElements = container.querySelectorAll('.ButtonGroup, .fof-upload-download, div[data-fof-upload-download-uuid]');
-      fofElements.forEach(el => {
-        if (el.dataset.plyrDone) return;
-        const text = (el.innerText || el.textContent || '').toLowerCase();
-        if (text.includes('.mp4')) {
-          const linkTag = el.querySelector('a') || el.closest('a') || el.querySelector('.Button');
-          let videoSrc = null;
-          if (linkTag && linkTag.href) {
-            videoSrc = linkTag.href;
-          } else {
-            const uuid = el.getAttribute('data-fof-upload-download-uuid');
-            if (uuid) videoSrc = window.location.origin + '/assets/files/' + uuid;
-          }
-          if (videoSrc) {
-            el.dataset.plyrDone = "true";
-            replaceWithPlyr(el, videoSrc);
-          }
-        }
-      });
-
-      const links = container.querySelectorAll('a[href*=".mp4"]');
-      links.forEach(link => {
-        if (link.dataset.plyrDone) return;
-        link.dataset.plyrDone = "true";
-        replaceWithPlyr(link, link.href);
-      });
-
-      // --- B. YOUTUBE SHORTS AUTOMATISCH EMBEDDEN ---
+      // --- 1. YOUTUBE SHORTS AUTOMATISCH OMZETTEN NAAR IFRAME ---
       const ytShortsLinks = container.querySelectorAll('a[href*="youtube.com/shorts/"], a[href*="youtu.be/"]');
       ytShortsLinks.forEach(link => {
-        if (link.dataset.embedDone) return;
+        if (link.dataset.embedDone || link.closest('iframe')) return;
         
         let videoId = null;
         if (link.href.includes('/shorts/')) {
           videoId = link.href.split('/shorts/')[1].split('?')[0].split('/')[0];
+        } else if (link.href.includes('youtu.be/')) {
+          videoId = link.href.split('youtu.be/')[1].split('?')[0].split('/')[0];
         }
 
         if (videoId) {
           link.dataset.embedDone = "true";
           const iframe = document.createElement('iframe');
           iframe.src = `https://www.youtube.com/embed/${videoId}`;
-          iframe.style.cssText = 'width: 100%; max-width: 340px; height: 600px; border-radius: 12px; border: none; margin: 10px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.15);';
+          iframe.style.cssText = 'width: 100%; max-width: 340px; height: 600px; border-radius: 12px; border: none; margin: 10px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: block;';
           iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
           iframe.setAttribute('allowfullscreen', 'true');
           link.parentNode.replaceChild(iframe, link);
         }
       });
 
-      // --- C. TIKTOK SHORTS AUTOMATISCH EMBEDDEN ---
+      // --- 2. TIKTOK AUTOMATISCH OMZETTEN NAAR IFRAME ---
       const tiktokLinks = container.querySelectorAll('a[href*="tiktok.com/"]');
       tiktokLinks.forEach(link => {
-        if (link.dataset.embedDone) return;
+        if (link.dataset.embedDone || link.closest('iframe')) return;
         const matches = link.href.match(/video\/(\d+)/);
         if (matches && matches[1]) {
           const videoId = matches[1];
           link.dataset.embedDone = "true";
           const iframe = document.createElement('iframe');
           iframe.src = `https://www.tiktok.com/embed/v2/${videoId}`;
-          iframe.style.cssText = 'width: 100%; max-width: 325px; height: 580px; border-radius: 12px; border: none; margin: 10px 0;';
+          iframe.style.cssText = 'width: 100%; max-width: 325px; height: 580px; border-radius: 12px; border: none; margin: 10px 0; display: block;';
           link.parentNode.replaceChild(iframe, link);
         }
       });
 
-      // --- D. SOUNDCLOUD LINKS AUTOMATISCH OMZETTEN NAAR INSLUITENDE SPELER ---
+      // --- 3. SOUNDCLOUD LINKS AUTOMATISCH OMZETTEN NAAR INSLUITENDE SPELER ---
       const scLinks = container.querySelectorAll('a[href*="soundcloud.com/"]');
       scLinks.forEach(link => {
         if (link.dataset.scDone || link.closest('iframe') || link.closest('.AudioPlayer')) return;
@@ -1654,7 +1628,7 @@
           
           const iframe = document.createElement('iframe');
           iframe.src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(href)}&color=%238a2be2&auto_play=false&hide_related=true&show_comments=true&show_user=true&show_reposts=false&show_teaser=false`;
-          iframe.style.cssText = 'width: 100%; max-width: 100%; height: 166px; border-radius: 12px; border: none; margin: 10px 0; background: transparent;';
+          iframe.style.cssText = 'width: 100%; max-width: 100%; height: 166px; border-radius: 12px; border: none; margin: 10px 0; background: transparent; display: block;';
           iframe.setAttribute('scrolling', 'no');
           iframe.setAttribute('frameborder', 'no');
           iframe.setAttribute('allow', 'autoplay');
@@ -1663,7 +1637,7 @@
         }
       });
 
-      // --- E. BESTAANDE SOUNDCLOUD & AUDIO FRAMES OPTIMALISEREN ---
+      // --- 4. BESTAANDE AUDIO & MEDIA FRAMES OPTIMALISEREN ---
       const scFrames = container.querySelectorAll('iframe[src*="soundcloud.com"], .MediaBox iframe, .AudioPlayer iframe');
       scFrames.forEach(frame => {
         frame.style.width = '100%';
@@ -1675,47 +1649,13 @@
       });
     });
 
-    // --- 2. INSTAGRAM EMBEDS HERLADEN ---
+    // --- INSTAGRAM EMBEDS HERLADEN ---
     if (window.instgrm && window.instgrm.Embeds) {
       window.instgrm.Embeds.process();
     }
   }
 
-  // Hulpfunctie voor Plyr
-  function replaceWithPlyr(targetEl, videoSrc) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'chatsong-video-wrapper';
-    wrapper.style.cssText = 'margin: 14px 0; border-radius: 12px; overflow: hidden; background: #000; box-shadow: 0 4px 15px rgba(0,0,0,0.15);';
-
-    const videoNode = document.createElement('video');
-    videoNode.className = 'cs-plyr';
-    videoNode.setAttribute('controls', '');
-    videoNode.setAttribute('playsinline', '');
-    videoNode.setAttribute('preload', 'auto');
-
-    const sourceNode = document.createElement('source');
-    sourceNode.src = videoSrc;
-    sourceNode.type = 'video/mp4';
-
-    videoNode.appendChild(sourceNode);
-    wrapper.appendChild(videoNode);
-
-    let elementToReplace = targetEl;
-    if (targetEl.classList.contains('Button') && targetEl.closest('.ButtonGroup')) {
-      elementToReplace = targetEl.closest('.ButtonGroup');
-    }
-
-    if (elementToReplace && elementToReplace.parentNode) {
-      elementToReplace.parentNode.replaceChild(wrapper, elementToReplace);
-      if (window.Plyr) {
-        new Plyr(videoNode, {
-          controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen']
-        });
-      }
-    }
-  }
-
-  // Luister naar normale lading én Flarum SPA navigatie
+  // Activeer direct en bij Flarum navigatie
   document.addEventListener('DOMContentLoaded', initChatsongMedia);
   window.addEventListener('flarum:page:changed', initChatsongMedia);
 
@@ -1727,3 +1667,4 @@
     }
   });
 })();
+</script>
