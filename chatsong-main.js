@@ -1,8 +1,143 @@
+<!-- ==========================================================
+     1. UNIVERSELE MEDIA EMBEDDERS (SoundCloud, YT Shorts, TikTok, Spotify)
+        - MOET BOVENAAN STAAN ZODAT SPELERS ALS EERSTE LADEN
+     ========================================================== -->
 <script>
 (function() {
   'use strict';
 
-  // Functie om de knop exact dezelfde grootte te geven als de Indie Artist badge
+  function convertAllMediaLinks() {
+    const containers = document.querySelectorAll('.Post-body, .PrivateMessage-body, .MessageBody, .item-content, .Comment');
+
+    containers.forEach(container => {
+      
+      // --- A. SOUNDCLOUD FIX ---
+      const scElements = container.querySelectorAll('a[href*="soundcloud.com"], .LinkPreview a[href*="soundcloud.com"], iframe[src*="soundcloud.com"]');
+      scElements.forEach(el => {
+        let rawUrl = el.href || el.src;
+        const targetBox = el.closest('.LinkPreview') || el.closest('iframe') || el;
+        
+        if (!rawUrl || targetBox.dataset.mediaDone) return;
+        targetBox.dataset.mediaDone = "true";
+
+        const iframe = document.createElement('iframe');
+        iframe.src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(rawUrl)}&color=%238a2be2&auto_play=false&hide_related=true&show_comments=true&show_user=true&show_reposts=false&show_teaser=false`;
+        iframe.style.cssText = 'width: 100%; max-width: 100%; height: 166px; border-radius: 12px; border: none; margin: 10px 0; background: transparent; display: block;';
+        iframe.setAttribute('scrolling', 'no');
+        iframe.setAttribute('frameborder', 'no');
+        iframe.setAttribute('allow', 'autoplay');
+
+        if (targetBox.parentNode) {
+          targetBox.parentNode.replaceChild(iframe, targetBox);
+        }
+      });
+
+      // --- B. YOUTUBE SHORTS ---
+      const ytElements = container.querySelectorAll('a[href*="youtube.com/shorts/"], a[href*="youtu.be/"], .LinkPreview a[href*="youtube.com/shorts/"], .LinkPreview a[href*="youtu.be/"]');
+      ytElements.forEach(link => {
+        const targetBox = link.closest('.LinkPreview') || link;
+        if (targetBox.dataset.mediaDone) return;
+
+        let videoId = null;
+        const href = link.href;
+
+        if (href.includes('/shorts/')) {
+          videoId = href.split('/shorts/')[1].split('?')[0].split('/')[0];
+        } else if (href.includes('youtu.be/')) {
+          videoId = href.split('youtu.be/')[1].split('?')[0].split('/')[0];
+        }
+
+        if (videoId) {
+          targetBox.dataset.mediaDone = "true";
+          const iframe = document.createElement('iframe');
+          iframe.src = `https://www.youtube.com/embed/${videoId}`;
+          iframe.style.cssText = 'width: 100%; max-width: 340px; height: 580px; border-radius: 12px; border: none; margin: 10px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: block;';
+          iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+          iframe.setAttribute('allowfullscreen', 'true');
+
+          if (targetBox.parentNode) {
+            targetBox.parentNode.replaceChild(iframe, targetBox);
+          }
+        }
+      });
+
+      // --- C. TIKTOK ---
+      const tiktokElements = container.querySelectorAll('a[href*="tiktok.com/"], .LinkPreview a[href*="tiktok.com/"]');
+      tiktokElements.forEach(link => {
+        const targetBox = link.closest('.LinkPreview') || link;
+        if (targetBox.dataset.mediaDone) return;
+
+        const matches = link.href.match(/video\/(\d+)/) || link.href.match(/\/v\/(\d+)/);
+        if (matches && matches[1]) {
+          const videoId = matches[1];
+          targetBox.dataset.mediaDone = "true";
+
+          const iframe = document.createElement('iframe');
+          iframe.src = `https://www.tiktok.com/embed/v2/${videoId}`;
+          iframe.style.cssText = 'width: 100%; max-width: 325px; height: 580px; border-radius: 12px; border: none; margin: 10px 0; display: block;';
+
+          if (targetBox.parentNode) {
+            targetBox.parentNode.replaceChild(iframe, targetBox);
+          }
+        }
+      });
+
+      // --- D. SPOTIFY ---
+      const spotifyElements = container.querySelectorAll('a[href*="open.spotify.com/"], .LinkPreview a[href*="open.spotify.com/"]');
+      spotifyElements.forEach(link => {
+        const targetBox = link.closest('.LinkPreview') || link;
+        if (targetBox.dataset.mediaDone) return;
+
+        let url = link.href;
+        if (url.includes('open.spotify.com/')) {
+          targetBox.dataset.mediaDone = "true";
+          
+          let cleanUrl = url.split('?')[0];
+          const embedUrl = cleanUrl.replace('open.spotify.com/', 'open.spotify.com/embed/');
+
+          const iframe = document.createElement('iframe');
+          iframe.src = embedUrl;
+          const frameHeight = embedUrl.includes('/concert/') || embedUrl.includes('/album/') || embedUrl.includes('/playlist/') ? '380px' : '152px';
+          
+          iframe.style.cssText = `width: 100%; max-width: 100%; height: ${frameHeight}; border-radius: 12px; border: none; margin: 10px 0; display: block;`;
+          iframe.setAttribute('allow', 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture');
+          iframe.setAttribute('loading', 'lazy');
+
+          if (targetBox.parentNode) {
+            targetBox.parentNode.replaceChild(iframe, targetBox);
+          }
+        }
+      });
+
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', convertAllMediaLinks);
+  window.addEventListener('flarum:page:changed', convertAllMediaLinks);
+
+  const observer = new MutationObserver(convertAllMediaLinks);
+  window.addEventListener('load', () => {
+    const target = document.getElementById('app') || document.body;
+    if (target) {
+      observer.observe(target, { childList: true, subtree: true });
+    }
+  });
+})();
+</script>
+
+
+<!-- ==========================================================
+     2. INSTAGRAM STORY SHARE BUTTON
+     ========================================================== -->
+<script>
+(function() {
+  'use strict';
+
+  function isUserTyping() {
+    const active = document.activeElement;
+    return active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
+  }
+
   function injectHeaderShareButton() {
     document.querySelectorAll('.Post-header > ul').forEach(ul => {
       if (!ul.querySelector('.item-cs-header-share')) {
@@ -12,7 +147,6 @@
         li.style.alignItems = 'center';
         li.style.marginTop = '4px';
 
-        // Knop met exact dezelfde padding, font-size en stijl als .RankBanner (Indie artist)
         li.innerHTML = `
           <button class="Button cs-header-share-btn" type="button" title="Share to Instagram Story" style="background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045) !important; color: #fff !important; border: none !important; padding: 8px 14px !important; border-radius: 12px !important; font-size: 13px !important; font-weight: 700 !important; cursor: pointer !important; display: inline-flex !important; align-items: center !important; gap: 6px !important; box-shadow: 0 2px 6px rgba(225, 48, 108, 0.4) !important;">
             <i class="icon fab fa-instagram" style="font-size: 15px !important;"></i>
@@ -22,7 +156,6 @@
 
         ul.appendChild(li);
 
-        // Koppel de Canvas generator aan de knop
         li.querySelector('button').addEventListener('click', function(e) {
           e.preventDefault();
           const postEl = e.target.closest('.Post');
@@ -32,7 +165,6 @@
     });
   }
 
-  // Canvas Generator & Deel-functie
   async function generateAndShareIGStory(postEl) {
     try {
       const title = document.querySelector('.DiscussionHero-title')?.innerText || document.title || 'Chatsong Track';
@@ -98,7 +230,7 @@
           a.href = URL.createObjectURL(blob);
           a.download = 'chatsong-ig-story.png';
           a.click();
-          alert('Instagram Story afbeelding gedownload! Je kunt deze direct uploaden naar je Instagram Story.');
+          alert('Instagram Story afbeelding gedownload!');
         }
       }, 'image/png');
 
@@ -132,14 +264,22 @@
   injectHeaderShareButton();
   const observer = new MutationObserver(injectHeaderShareButton);
   observer.observe(document.body, { childList: true, subtree: true });
-
 })();
 </script>
 
 
-  /* ==========================================================
-     2. A-Z FILTER BAR (User Directory)
-     ========================================================== */
+<!-- ==========================================================
+     3. A-Z FILTER BAR & STICKY ACCORDION
+     ========================================================== -->
+<script>
+(function() {
+  'use strict';
+
+  function isUserTyping() {
+    const active = document.activeElement;
+    return active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
+  }
+
   function injectAZBar() {
     if (!window.location.pathname.startsWith('/users')) {
       var existingBar = document.getElementById('cs-az-filter-bar');
@@ -206,12 +346,8 @@
     resultsContainer.insertBefore(azBar, resultsContainer.firstChild);
   }
 
-
-  /* ==========================================================
-     3. STICKY ACCORDION (Forum Activity)
-     ========================================================== */
   function initStickyAccordion() {
-    if (isUserTyping()) return; // Stop als de gebruiker typt
+    if (isUserTyping()) return;
 
     var heads = document.querySelectorAll('.ForumActivity-sectionHead');
     heads.forEach(function(head) {
@@ -256,43 +392,26 @@
     });
   }
 
-
-  /* ==========================================================
-     GEOPTIMALISEERDE UITVOERING (Met debounce / throttling)
-     ========================================================== */
   let timeout = null;
   const observer = new MutationObserver(function() {
-    if (isUserTyping()) return; // Geen DOM-acties tijdens het typen
+    if (isUserTyping()) return;
     if (timeout) clearTimeout(timeout);
     timeout = setTimeout(() => {
-      injectIGStoryToPostActions();
       injectAZBar();
       initStickyAccordion();
-    }, 250); // Voer pas uit 250ms nadat de laatste DOM-wijziging is gestopt
+    }, 250);
   });
 
   observer.observe(document.body, { childList: true, subtree: true });
 
-  // Veilige, trage interval (elke 2 seconden in plaats van 500ms) om ontbrekende elementen op te vangen
-  setInterval(function() {
-    if (!isUserTyping()) {
-      injectIGStoryToPostActions();
-      injectAZBar();
-      initStickyAccordion();
-    }
-  }, 2000);
-
-  // Initiële check bij laden
   window.addEventListener('DOMContentLoaded', () => {
-    injectIGStoryToPostActions();
     injectAZBar();
     initStickyAccordion();
   });
-
 })();
 </script>
+
 <style>
-  /* Geef de verborgen klasse een hogere specificiteit zodat deze wint van de grid-weergave */
   .ForumActivity-table tr.ForumActivity-row.cs-collapsed-row {
     display: none !important;
   }
@@ -302,7 +421,6 @@
 (function() {
     'use strict';
     
-    // Voeg de badge toe aan de sticky header als deze er nog niet staat
     function initSticky() {
         document.querySelectorAll('.ForumActivity-sectionHead').forEach(function(head) {
             var text = head.textContent || '';
@@ -311,7 +429,6 @@
             head.style.cursor = 'pointer';
             head.style.userSelect = 'none';
             
-            // Controleer of de badge al bestaat, zo niet, voeg hem toe
             if (!head.querySelector('.accordion-badge')) {
                 var badge = document.createElement('span');
                 badge.className = 'accordion-badge';
@@ -324,16 +441,14 @@
                 badge.style.color = 'rgb(255, 255, 255)';
                 badge.style.marginTop = '-2px';
                 badge.style.marginRight = '8px';
-                badge.innerHTML = '▼ Collapse'; // Standaardstaat is open, dus tekst is Collapse
+                badge.innerHTML = '▼ Collapse';
                 
-                // Voeg de badge toe aan de cel of header
                 var cell = head.querySelector('td') || head;
                 cell.appendChild(badge);
             }
         });
     }
     
-    // Vang de klik op de sticky sectie op
     document.addEventListener('click', function(e) {
         var head = e.target.closest('.ForumActivity-sectionHead');
         if (!head) return;
@@ -345,10 +460,7 @@
         e.stopPropagation();
         e.stopImmediatePropagation();
         
-        // Toggle de ingeklapte status
         var isCollapsed = head.classList.toggle('cs-collapsed');
-        
-        // Pas de badge tekst en pijl aan op basis van de status
         var badge = head.querySelector('.accordion-badge');
         if (badge) {
             if (isCollapsed) {
@@ -358,7 +470,6 @@
             }
         }
         
-        // Zoek alle rijen erachter tot de volgende sectie en verberg/toon ze
         var next = head.nextElementSibling;
         while (next && !next.classList.contains('ForumActivity-sectionHead')) {
             if (next.tagName === 'TR') {
@@ -385,9 +496,9 @@
 })();
 </script>
 
+
 <!-- ==========================================================
-     UNIVERSELE MOBILE, PRE-SAVE & SOCIAL FIXER (CHATSONG FOOTER)
-     - Includes DistroKid, Pre-Saves, Anti-Duplication & English
+     4. UNIVERSELE SOCIAL & PRE-SAVE CARD FIXER
      ========================================================== -->
 <script>
 (function() {
@@ -403,10 +514,6 @@
     if (lower.includes('distrokid.com') || lower.includes('hyperfollow')) return 'distrokid';
     if (lower.includes('ffm.to') || lower.includes('feature.fm') || lower.includes('toneden.io') || lower.includes('smarturl') || lower.includes('show.co') || lower.includes('ditto.fm') || lower.includes('presave')) return 'presave';
     if (lower.includes('instagram.com') || lower.includes('instagr.am')) return 'instagram';
-    if (lower.includes('youtube.com') || lower.includes('youtu.be')) return 'youtube';
-    if (lower.includes('soundcloud.com') || lower.includes('snd.sc')) return 'soundcloud';
-    if (lower.includes('spotify.com')) return 'spotify';
-    if (lower.includes('tiktok.com')) return 'tiktok';
     if (lower.includes('linktr.ee') || lower.includes('beacons.ai') || lower.includes('bio.link')) return 'linktree';
     return 'generic';
   }
@@ -417,60 +524,11 @@
     var identifier = parts[parts.length - 1] || 'Release';
 
     var config = {
-      distrokid: {
-        bg: 'linear-gradient(135deg, #00C6FF, #0072FF)',
-        icon: 'fas fa-compact-disc',
-        title: 'DistroKid / HyperFollow',
-        sub: 'Pre-save or stream release'
-      },
-      presave: {
-        bg: 'linear-gradient(135deg, #8E2DE2, #4A00E0)',
-        icon: 'fas fa-music',
-        title: 'Pre-Save / Smart Link',
-        sub: 'Pre-save or choose music platform'
-      },
-      instagram: {
-        bg: 'linear-gradient(45deg, #405DE6, #5851DB, #833AB4, #C13584, #E1306C, #FD1D1D)',
-        icon: 'fab fa-instagram',
-        title: 'Instagram',
-        sub: 'View profile or post on Instagram'
-      },
-      youtube: {
-        bg: 'linear-gradient(135deg, #FF0000, #CC0000)',
-        icon: 'fab fa-youtube',
-        title: 'YouTube',
-        sub: 'View video or channel on YouTube'
-      },
-      soundcloud: {
-        bg: 'linear-gradient(135deg, #FF5500, #FF3300)',
-        icon: 'fab fa-soundcloud',
-        title: 'SoundCloud',
-        sub: 'Listen on SoundCloud'
-      },
-      spotify: {
-        bg: 'linear-gradient(135deg, #1DB954, #191414)',
-        icon: 'fab fa-spotify',
-        title: 'Spotify',
-        sub: 'Open in Spotify'
-      },
-      tiktok: {
-        bg: 'linear-gradient(135deg, #000000, #25F4EE, #FE2C55)',
-        icon: 'fab fa-tiktok',
-        title: 'TikTok',
-        sub: 'View on TikTok'
-      },
-      linktree: {
-        bg: 'linear-gradient(135deg, #39E09B, #1E293B)',
-        icon: 'fas fa-tree',
-        title: 'Linktree / Bio',
-        sub: 'View creator links'
-      },
-      generic: {
-        bg: 'rgba(255,255,255,0.08)',
-        icon: 'fas fa-external-link-alt',
-        title: 'External Link',
-        sub: rawClean
-      }
+      distrokid: { bg: 'linear-gradient(135deg, #00C6FF, #0072FF)', icon: 'fas fa-compact-disc', title: 'DistroKid / HyperFollow', sub: 'Pre-save or stream release' },
+      presave: { bg: 'linear-gradient(135deg, #8E2DE2, #4A00E0)', icon: 'fas fa-music', title: 'Pre-Save / Smart Link', sub: 'Pre-save or choose music platform' },
+      instagram: { bg: 'linear-gradient(45deg, #405DE6, #5851DB, #833AB4, #C13584, #E1306C, #FD1D1D)', icon: 'fab fa-instagram', title: 'Instagram', sub: 'View profile on Instagram' },
+      linktree: { bg: 'linear-gradient(135deg, #39E09B, #1E293B)', icon: 'fas fa-tree', title: 'Linktree / Bio', sub: 'View creator links' },
+      generic: { bg: 'rgba(255,255,255,0.08)', icon: 'fas fa-external-link-alt', title: 'External Link', sub: rawClean }
     };
 
     var item = config[type] || config.generic;
@@ -507,7 +565,6 @@
     postBodies.forEach(function(body) {
       var handledUrls = [];
 
-      // 1. Ruim eventuele eerder gemaakte dubbele kaarten op
       var existingCards = body.querySelectorAll('a.cs-custom-card');
       existingCards.forEach(function(cardA) {
         var cUrl = cleanUrl(cardA.href);
@@ -518,25 +575,19 @@
         }
       });
 
-      // 2. Verwerk LinkPreview foutmeldingen & blokken
       var previews = body.querySelectorAll('.LinkPreview');
       previews.forEach(function(preview) {
+        if (preview.dataset.mediaDone || preview.querySelector('iframe')) return;
+
         var link = preview.closest('a') || preview.querySelector('a') || preview.parentElement;
         var rawUrl = link ? (link.href || '') : '';
-        if (!rawUrl) {
-          var match = (preview.innerText || '').match(/(https?:\/\/[^\s]+)/);
-          if (match) rawUrl = match[0];
-        }
-
         if (!rawUrl) return;
 
         var cUrl = cleanUrl(rawUrl);
-        var isError = (preview.innerText || '').includes('Unable to load preview') || (preview.innerText || '').includes('Please check the URL') || (preview.innerText || '').trim() === '';
         var platform = detectPlatform(rawUrl);
-
         var targetToReplace = preview.closest('a') || preview;
 
-        if (platform !== 'generic' || isError) {
+        if (platform !== 'generic') {
           if (handledUrls.indexOf(cUrl) !== -1) {
             targetToReplace.remove();
           } else {
@@ -548,28 +599,6 @@
           }
         }
       });
-
-      // 3. Verwerk overige losse/ruwe links in hetzelfde bericht
-      var rawLinks = body.querySelectorAll('a:not(.cs-custom-card)');
-      rawLinks.forEach(function(a) {
-        if (a.closest('.cs-custom-card') || a.closest('.LinkPreview')) return;
-
-        var rawUrl = a.href || a.innerText;
-        if (!rawUrl || !rawUrl.startsWith('http')) return;
-
-        var cUrl = cleanUrl(rawUrl);
-        var platform = detectPlatform(rawUrl);
-
-        if (handledUrls.indexOf(cUrl) !== -1) {
-          a.remove();
-        } else if (platform !== 'generic') {
-          var newCard = createPlatformCard(rawUrl, platform);
-          handledUrls.push(cUrl);
-          if (a.parentNode) {
-            a.parentNode.replaceChild(newCard, a);
-          }
-        }
-      });
     });
   }
 
@@ -577,18 +606,108 @@
     setTimeout(processPostBodies, 300);
   });
 
-  var observer = new MutationObserver(function() {
-    processPostBodies();
-  });
-
+  var observer = new MutationObserver(processPostBodies);
   if (document.body) {
     observer.observe(document.body, { childList: true, subtree: true });
   }
 })();
 </script>
 
+
+<!-- ==========================================================
+     5. PLYR MP4 VIDEOSPELER & LIVE MUSIC CHATROOM & LEADERBOARD
+     ========================================================== -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.css" />
+<script src="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.polyfilled.js"></script>
+
+<script>
+(function() {
+  function processVideos() {
+    const posts = document.querySelectorAll('.Post-body');
+
+    posts.forEach(post => {
+      const fofElements = post.querySelectorAll('.ButtonGroup, .fof-upload-download, div[data-fof-upload-download-uuid]');
+
+      fofElements.forEach(el => {
+        if (el.dataset.plyrDone) return;
+
+        const text = (el.innerText || el.textContent || '').toLowerCase();
+        if (text.includes('.mp4')) {
+          const linkTag = el.querySelector('a') || el.closest('a') || el.querySelector('.Button');
+          let videoSrc = null;
+
+          if (linkTag && linkTag.href) {
+            videoSrc = linkTag.href;
+          } else {
+            const uuid = el.getAttribute('data-fof-upload-download-uuid');
+            if (uuid) {
+              videoSrc = window.location.origin + '/assets/files/' + uuid;
+            }
+          }
+
+          if (videoSrc) {
+            el.dataset.plyrDone = "true";
+            replaceWithPlyr(el, videoSrc);
+          }
+        }
+      });
+
+      const links = post.querySelectorAll('a[href*=".mp4"]');
+      links.forEach(link => {
+        if (link.dataset.plyrDone) return;
+        link.dataset.plyrDone = "true";
+        replaceWithPlyr(link, link.href);
+      });
+    });
+  }
+
+  function replaceWithPlyr(targetEl, videoSrc) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'chatsong-video-wrapper';
+    wrapper.style.cssText = 'margin: 14px 0; border-radius: 12px; overflow: hidden; background: #000; box-shadow: 0 4px 15px rgba(0,0,0,0.15);';
+
+    const videoNode = document.createElement('video');
+    videoNode.className = 'cs-plyr';
+    videoNode.setAttribute('controls', '');
+    videoNode.setAttribute('playsinline', '');
+    videoNode.setAttribute('preload', 'auto');
+
+    const sourceNode = document.createElement('source');
+    sourceNode.src = videoSrc;
+    sourceNode.type = 'video/mp4';
+
+    videoNode.appendChild(sourceNode);
+    wrapper.appendChild(videoNode);
+
+    let elementToReplace = targetEl;
+    if (targetEl.classList.contains('Button') && targetEl.closest('.ButtonGroup')) {
+      elementToReplace = targetEl.closest('.ButtonGroup');
+    }
+
+    if (elementToReplace && elementToReplace.parentNode) {
+      elementToReplace.parentNode.replaceChild(wrapper, elementToReplace);
+
+      if (window.Plyr) {
+        new Plyr(videoNode, {
+          controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen']
+        });
+      }
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', processVideos);
+  const observer = new MutationObserver(processVideos);
+  window.addEventListener('load', () => {
+    const target = document.getElementById('app') || document.body;
+    if (target) {
+      observer.observe(target, { childList: true, subtree: true });
+    }
+  });
+})();
+</script>
+
 <style>
-  /* Floating Music Chatroom - Net boven de mobile tab */
+  /* Floating Music Chatroom */
   #music-chat-widget {
     position: fixed;
     bottom: 70px;
@@ -609,7 +728,6 @@
     transition: all 0.3s ease;
   }
 
-  /* Minimized State */
   #music-chat-widget.minimized {
     height: 48px !important;
     left: auto;
@@ -860,7 +978,7 @@
         if ("Notification" in window && Notification.permission === "default") {
           Notification.requestPermission();
         }
-      } catch (e) { console.error('Notification error:', e); }
+      } catch (e) {}
     }
 
     function triggerBrowserNotification(sender, messageText) {
@@ -871,18 +989,14 @@
             icon: "/favicon.ico"
           });
         }
-      } catch (e) { console.error('Browser Notification error:', e); }
+      } catch (e) {}
     }
 
     if (inputEl) inputEl.addEventListener('focus', requestNotificationPermission);
 
     function toggleChat() {
       widget.classList.toggle('minimized');
-      if (widget.classList.contains('minimized')) {
-        toggleBtn.innerText = '+';
-      } else {
-        toggleBtn.innerText = '−';
-      }
+      toggleBtn.innerText = widget.classList.contains('minimized') ? '+' : '−';
     }
 
     if (header) header.addEventListener('click', toggleChat);
@@ -896,7 +1010,7 @@
             avatar: typeof u.attribute === 'function' ? u.attribute('avatarUrl') : (u.avatarUrl || null)
           };
         }
-      } catch (e) { console.error('Flarum user fetch error:', e); }
+      } catch (e) {}
       return { name: 'Guest_' + Math.floor(Math.random() * 1000), avatar: null };
     }
 
@@ -916,8 +1030,7 @@
         }
       } catch(e) {}
 
-      var userElems = document.querySelectorAll('.chat-user');
-      userElems.forEach(function(el) {
+      document.querySelectorAll('.chat-user').forEach(function(el) {
         var name = el.innerText;
         if (name && !usersMap[name.toLowerCase()]) {
           usersMap[name.toLowerCase()] = true;
@@ -938,19 +1051,13 @@
       matches.forEach(function(u) {
         var item = document.createElement('div');
         item.className = 'mention-item';
-        
         var initial = u.name.charAt(0).toUpperCase();
-        var avatarHtml = u.avatar 
-          ? '<img src="' + u.avatar + '" class="mention-item-avatar" />'
-          : '<div class="mention-item-avatar">' + initial + '</div>';
-
+        var avatarHtml = u.avatar ? '<img src="' + u.avatar + '" class="mention-item-avatar" />' : '<div class="mention-item-avatar">' + initial + '</div>';
         item.innerHTML = avatarHtml + '<span>' + u.name + '</span>';
-
         item.addEventListener('click', function(e) {
           e.stopPropagation();
           insertMention(u.name, atPos);
         });
-
         dropdownEl.appendChild(item);
       });
       dropdownEl.style.display = 'block';
@@ -958,9 +1065,7 @@
 
     function insertMention(username, atPos) {
       var text = inputEl.value;
-      var beforeAt = text.substring(0, atPos);
-      var afterAt = text.substring(inputEl.selectionStart);
-      inputEl.value = beforeAt + '@' + username + ' ' + afterAt;
+      inputEl.value = text.substring(0, atPos) + '@' + username + ' ' + text.substring(inputEl.selectionStart);
       hideDropdown();
       inputEl.focus();
     }
@@ -968,18 +1073,11 @@
     if (inputEl) {
       inputEl.addEventListener('input', function() {
         var text = inputEl.value;
-        var cursorPos = inputEl.selectionStart;
-        var textBeforeCursor = text.substring(0, cursorPos);
-        var lastAtPos = textBeforeCursor.lastIndexOf('@');
-
+        var lastAtPos = text.substring(0, inputEl.selectionStart).lastIndexOf('@');
         if (lastAtPos !== -1) {
-          var query = textBeforeCursor.substring(lastAtPos + 1).toLowerCase();
+          var query = text.substring(lastAtPos + 1, inputEl.selectionStart).toLowerCase();
           if (!query.includes(' ')) {
-            var allUsers = getAllUsers();
-            var matches = allUsers.filter(function(u) {
-              return u.name.toLowerCase().startsWith(query);
-            });
-
+            var matches = getAllUsers().filter(u => u.name.toLowerCase().startsWith(query));
             if (matches.length > 0) {
               showDropdown(matches, lastAtPos);
               return;
@@ -995,76 +1093,41 @@
     function parseFormattedText(text) {
       var div = document.createElement('div');
       div.innerText = text;
-      var escaped = div.innerHTML;
-
-      escaped = escaped.replace(/@([a-zA-Z0-9_-]+)/g, '<span class="chat-mention">@$1</span>');
+      var escaped = div.innerHTML.replace(/@([a-zA-Z0-9_-]+)/g, '<span class="chat-mention">@$1</span>');
 
       var embedHtml = '';
       var scUrls = [];
 
-      // 1. Spotify Embed
-      var spotifyRegex = /(https?:\/\/open\.spotify\.com\/(?:intl-[a-z]{2}\/)?(track|album|playlist|artist|episode)\/([a-zA-Z0-9]+))/i;
-      var spotifyMatch = spotifyRegex.exec(text);
+      var spotifyMatch = /(https?:\/\/open\.spotify\.com\/(?:intl-[a-z]{2}\/)?(track|album|playlist|artist|episode)\/([a-zA-Z0-9]+))/i.exec(text);
       if (spotifyMatch) {
         embedHtml += '<div class="embed-container"><iframe src="https://open.spotify.com/embed/' + spotifyMatch[2] + '/' + spotifyMatch[3] + '" width="100%" height="80" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe></div>';
       }
 
-      // 2. SoundCloud Embed
-      var scRegex = /(https?:\/\/(?:www\.|on\.)?soundcloud\.com\/[^\s]+)/i;
-      var scMatch = scRegex.exec(text);
+      var scMatch = /(https?:\/\/(?:www\.|on\.)?soundcloud\.com\/[^\s]+)/i.exec(text);
       if (scMatch && !spotifyMatch) {
         var uniqueId = 'sc-embed-' + Math.random().toString(36).substring(2, 9);
         embedHtml += '<div class="embed-container" id="' + uniqueId + '"></div>';
         scUrls.push({ id: uniqueId, url: scMatch[0] });
       }
 
-      // 3. YouTube Embed
-      var ytRegex = /(?:youtube\.com\/(?:shorts\/|watch\?v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i;
-      var ytMatch = ytRegex.exec(text);
+      var ytMatch = /(?:youtube\.com\/(?:shorts\/|watch\?v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i.exec(text);
       if (ytMatch && ytMatch[1] && !spotifyMatch && !scMatch) {
-        var ytId = ytMatch[1];
-        embedHtml += '<div class="embed-container"><iframe width="100%" height="180" src="https://www.youtube-nocookie.com/embed/' + ytId + '" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>';
+        embedHtml += '<div class="embed-container"><iframe width="100%" height="180" src="https://www.youtube-nocookie.com/embed/' + ytMatch[1] + '" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>';
       }
 
-      // 4. Beatport Embed
-      var bpRegex = /(?:beatport\.com\/(?:[a-z]{2}\/)?(track|release)\/[^\/]+\/([0-9]+))/i;
-      var bpMatch = bpRegex.exec(text);
-      if (bpMatch && bpMatch[2] && !spotifyMatch && !scMatch && !ytMatch) {
-        var bpType = bpMatch[1];
-        var bpId = bpMatch[2];
-        embedHtml += '<div class="embed-container"><iframe src="https://embed.beatport.com/?id=' + bpId + '&type=' + bpType + '" width="100%" height="160" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe></div>';
-      }
-
-      // 5. Mixcloud Embed
-      var mcRegex = /(https?:\/\/(?:www\.)?mixcloud\.com\/[^\s]+)/i;
-      var mcMatch = mcRegex.exec(text);
-      if (mcMatch && !spotifyMatch && !scMatch && !ytMatch && !bpMatch) {
-        var mcUrl = mcMatch[0];
-        embedHtml += '<div class="embed-container"><iframe width="100%" height="120" src="https://www.mixcloud.com/widget/iframe/?feed=' + encodeURIComponent(mcUrl) + '&hide_cover=0&light=0" frameborder="0" allow="autoplay"></iframe></div>';
-      }
-
-      escaped = escaped.replace(/(https?:\/\/[^\s]+)/g, function(url) {
-        return '<a href="' + url + '" target="_blank" class="chat-link">' + url + '</a>';
-      });
-
+      escaped = escaped.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="chat-link">$1</a>');
       return { html: escaped + embedHtml, scUrls: scUrls };
     }
 
     function renderMessage(data, isLiveNew) {
-      if (!msgContainer) return;
-      if (data.id && document.querySelector('.chat-msg[data-id="' + data.id + '"]')) {
-        return;
-      }
+      if (!msgContainer || (data.id && document.querySelector('.chat-msg[data-id="' + data.id + '"]'))) return;
 
       var div = document.createElement('div');
       div.className = 'chat-msg';
       if (data.id) div.setAttribute('data-id', data.id);
-      
-      var initial = data.username ? data.username.charAt(0).toUpperCase() : '?';
-      var avatarHtml = data.avatar_url 
-        ? '<img src="' + data.avatar_url + '" class="chat-avatar" />'
-        : '<div class="chat-avatar">' + initial + '</div>';
 
+      var initial = data.username ? data.username.charAt(0).toUpperCase() : '?';
+      var avatarHtml = data.avatar_url ? '<img src="' + data.avatar_url + '" class="chat-avatar" />' : '<div class="chat-avatar">' + initial + '</div>';
       var parsed = parseFormattedText(data.message);
 
       div.innerHTML = avatarHtml +
@@ -1076,50 +1139,38 @@
           '<span class="chat-text">' + parsed.html + '</span>' +
         '</div>';
 
-      if (parsed.scUrls && parsed.scUrls.length > 0) {
-        parsed.scUrls.forEach(function(scInfo) {
+      if (parsed.scUrls.length > 0) {
+        parsed.scUrls.forEach(scInfo => {
           var holder = div.querySelector('#' + scInfo.id);
           if (holder) {
             fetch('https://soundcloud.com/oembed?url=' + encodeURIComponent(scInfo.url) + '&format=json&maxheight=120')
-              .then(function(r) { return r.json(); })
-              .then(function(scData) {
+              .then(r => r.json())
+              .then(scData => {
                 if (scData && scData.html) {
                   holder.innerHTML = scData.html;
                   var iframe = holder.querySelector('iframe');
-                  if (iframe) {
-                    iframe.style.width = '100%';
-                    iframe.style.height = '120px';
-                  }
+                  if (iframe) { iframe.style.width = '100%'; iframe.style.height = '120px'; }
                 }
-              })
-              .catch(function(err) {});
+              }).catch(() => {});
           }
         });
       }
 
-      var deleteBtn = div.querySelector('.chat-delete-btn');
-      if (deleteBtn) {
-        deleteBtn.addEventListener('click', async function(e) {
-          e.stopPropagation();
-          if (confirm('Wil je dit bericht verwijderen?')) {
-            if (sb && data.id) {
-              await sb.from('chat_messages').delete().eq('id', data.id);
-            }
-            div.remove();
-          }
-        });
-      }
+      div.querySelector('.chat-delete-btn').addEventListener('click', async function(e) {
+        e.stopPropagation();
+        if (confirm('Verwijderen?')) {
+          if (sb && data.id) await sb.from('chat_messages').delete().eq('id', data.id);
+          div.remove();
+        }
+      });
 
       msgContainer.appendChild(div);
       msgContainer.scrollTop = msgContainer.scrollHeight;
 
       if (isLiveNew) {
         var currentUser = getFlarumUser();
-        if (currentUser.name && data.username !== currentUser.name) {
-          var mentionTag = '@' + currentUser.name.toLowerCase();
-          if (data.message.toLowerCase().includes(mentionTag)) {
-            triggerBrowserNotification(data.username, data.message);
-          }
+        if (currentUser.name && data.username !== currentUser.name && data.message.toLowerCase().includes('@' + currentUser.name.toLowerCase())) {
+          triggerBrowserNotification(data.username, data.message);
         }
       }
     }
@@ -1128,565 +1179,38 @@
       if (!inputEl) return;
       var text = inputEl.value.trim();
       if (!text) return;
-
       var user = getFlarumUser();
       inputEl.value = '';
 
       if (sb) {
-        await sb.from('chat_messages').insert([
-          { username: user.name, avatar_url: user.avatar, message: text }
-        ]);
+        await sb.from('chat_messages').insert([{ username: user.name, avatar_url: user.avatar, message: text }]);
       } else {
         renderMessage({ username: user.name, avatar_url: user.avatar, message: text }, true);
       }
     }
 
-    if (sendBtn) {
-      sendBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        sendMessage();
-      });
-    }
-
+    if (sendBtn) sendBtn.addEventListener('click', (e) => { e.stopPropagation(); sendMessage(); });
     if (inputEl) {
-      inputEl.addEventListener('click', function(e) {
-        e.stopPropagation();
-      });
-
-      inputEl.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') sendMessage();
-      });
+      inputEl.addEventListener('click', (e) => e.stopPropagation());
+      inputEl.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
     }
 
     if (sb) {
-      sb.from('chat_messages').select('*').order('id', { ascending: true }).limit(30).then(function(res) {
+      sb.from('chat_messages').select('*').order('id', { ascending: true }).limit(30).then(res => {
         if (res.data) {
           msgContainer.innerHTML = '';
-          res.data.forEach(function(msg) {
-            renderMessage(msg, false);
-          });
+          res.data.forEach(msg => renderMessage(msg, false));
         }
       });
 
       sb.channel('public:chat_messages')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, function(payload) {
-          renderMessage(payload.new, true);
-        })
-        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_messages' }, function(payload) {
-          var el = msgContainer.querySelector('.chat-msg[data-id="' + payload.old.id + '"]');
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, p => renderMessage(p.new, true))
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_messages' }, p => {
+          var el = msgContainer.querySelector('.chat-msg[data-id="' + p.old.id + '"]');
           if (el) el.remove();
         })
         .subscribe();
     }
-  } catch (err) {
-    console.error('Critical Widget Error:', err);
-  }
+  } catch (err) {}
 })();
 </script>
-
-<style>
-/* Leaderboard Styling - Werkt nu identiek op Desktop én Mobiel */
-.LeaderboardPage { padding: 15px; width: 100%; box-sizing: border-box; }
-.LeaderboardHero {
-    background: linear-gradient(135deg, #8a2be2 0%, #ff007f 100%);
-    color: #fff;
-    padding: 20px 10px;
-    border-radius: 12px;
-    margin-bottom: 20px;
-    text-align: center;
-}
-.LeaderboardHero .Hero-title { font-size: 20px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0; color: #fff; }
-
-.LeaderboardPodium {
-    display: flex;
-    justify-content: center;
-    align-items: flex-end;
-    gap: 8px;
-    margin-bottom: 25px;
-    flex-wrap: nowrap;
-    width: 100%;
-}
-.LeaderboardPodium-place {
-    background: var(--body-bg, #fff);
-    border: 1px solid rgba(0,0,0,0.08);
-    border-radius: 10px;
-    padding: 12px 8px;
-    text-align: center;
-    flex: 1;
-    min-width: 0;
-    max-width: 160px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.04);
-    text-decoration: none;
-    color: inherit;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-.LeaderboardPodium-place--1 { order: 2; transform: translateY(-6px); border-color: #ffd700; background: linear-gradient(to bottom, rgba(255,215,0,0.08), transparent); }
-.LeaderboardPodium-place--2 { order: 1; }
-.LeaderboardPodium-place--3 { order: 3; }
-
-.LeaderboardPodium-medal {
-    font-weight: 800;
-    font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 8px;
-    margin-bottom: 6px;
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    white-space: nowrap;
-}
-.LeaderboardPodium-medal--gold { background: #ffd700; color: #fff; }
-.LeaderboardPodium-medal--silver { background: #c0c0c0; color: #fff; }
-.LeaderboardPodium-medal--bronze { background: #cd7f32; color: #fff; }
-
-.LeaderboardPodium-avatar img, .LeaderboardContenders-avatar img, .LeaderboardItem-avatar img {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    object-fit: cover;
-    margin-bottom: 6px;
-}
-.LeaderboardPodium-place--1 .LeaderboardPodium-avatar img { width: 50px; height: 50px; }
-
-.LeaderboardPodium-name, .LeaderboardContenders-name, .LeaderboardItem-name {
-    font-weight: 700;
-    font-size: 12px;
-    margin-bottom: 3px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    width: 100%;
-}
-.LeaderboardPodium-points, .LeaderboardContenders-points, .LeaderboardItem-points {
-    font-size: 10px;
-    color: var(--primary-color, #8a2be2);
-    font-weight: 600;
-}
-
-.LeaderboardContenders-title, .LeaderboardHonorable-title {
-    font-size: 15px;
-    font-weight: 700;
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-.LeaderboardContenders-grid, .LeaderboardHonorable-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 8px;
-    margin-bottom: 20px;
-}
-.LeaderboardContenders-card, .LeaderboardItem {
-    background: var(--body-bg, #fff);
-    border: 1px solid rgba(0,0,0,0.06);
-    border-radius: 8px;
-    padding: 8px 10px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    text-decoration: none;
-    color: inherit;
-    box-sizing: border-box;
-}
-.LeaderboardContenders-rank, .LeaderboardItem-rank {
-    font-weight: 700;
-    font-size: 11px;
-    color: #888;
-    min-width: 18px;
-}
-.LeaderboardContenders-card .LeaderboardContenders-avatar img,
-.LeaderboardItem .LeaderboardItem-avatar img {
-    width: 28px;
-    height: 28px;
-    margin-bottom: 0;
-}
-
-/* Mobiele optimalisatie voor schermen kleiner dan 576px */
-@media (max-width: 576px) {
-    .LeaderboardPage { padding: 8px; }
-    .LeaderboardHero { padding: 12px 6px; margin-bottom: 12px; }
-    .LeaderboardHero .Hero-title { font-size: 15px; }
-    
-    .LeaderboardPodium { gap: 4px; margin-bottom: 15px; }
-    .LeaderboardPodium-place { padding: 8px 4px; }
-    .LeaderboardPodium-avatar img { width: 32px !important; height: 32px !important; }
-    .LeaderboardPodium-place--1 .LeaderboardPodium-avatar img { width: 40px !important; height: 40px !important; }
-    .LeaderboardPodium-name { font-size: 10px; }
-    
-    .LeaderboardContenders-grid, .LeaderboardHonorable-grid {
-        grid-template-columns: 1fr;
-        gap: 6px;
-    }
-}
-</style>
-
-<script>
-(function() {
-    function renderLeaderboard() {
-        if (!window.location.pathname.includes('/rankings')) {
-            const existing = document.querySelector('.LeaderboardPage');
-            if (existing) existing.remove();
-            return;
-        }
-
-        // Gebruik .IndexPage omdat deze zowel op mobiel als desktop bestaat
-        const indexPage = document.querySelector('.IndexPage');
-        if (!indexPage) return;
-
-        const rows = document.querySelectorAll('table.rankings tr, tr[class*="ranking"], .rankings-list li');
-        if (rows.length === 0) return;
-
-        // Verberg de originele tabellen/lijsten zodat ze niet storen
-        const originals = document.querySelectorAll('table.rankings, .rankings-list');
-        originals.forEach(el => el.style.display = 'none');
-        const loadMore = document.querySelector('.rankings-loadmore');
-        if (loadMore) loadMore.style.display = 'none';
-
-        if (indexPage.querySelector('.LeaderboardPage')) return;
-
-        let usersData = [];
-        rows.forEach((row) => {
-            if (row.querySelector('th')) return;
-            
-            const nameEl = row.querySelector('.username, a');
-            const linkEl = row.querySelector('a');
-            const avatarEl = row.querySelector('img.Avatar, img');
-            const pointsEl = row.querySelector('td:last-child, .points');
-            
-            if (nameEl) {
-                const nameText = nameEl.innerText.trim();
-                const profileLink = linkEl ? linkEl.getAttribute('href') : '#';
-                const pointsText = pointsEl ? pointsEl.innerText.trim() : '0';
-
-                let avatarSrc = (avatarEl && avatarEl.src && !avatarEl.src.includes('ui-avatars')) 
-                    ? avatarEl.src 
-                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(nameText)}&background=random&color=fff&bold=true&size=128`;
-
-                if (nameText && !usersData.some(u => u.name === nameText)) {
-                    usersData.push({
-                        rank: usersData.length + 1,
-                        name: nameText,
-                        avatar: avatarSrc,
-                        points: pointsText + ' Points',
-                        link: profileLink
-                    });
-                }
-            }
-        });
-
-        if (usersData.length === 0) return;
-
-        let newHTML = `
-        <div class="LeaderboardPage">
-            <header class="Hero LeaderboardHero">
-                <div class="container">
-                    <div class="containerNarrow">
-                        <h1 class="Hero-title"><i class="fas fa-trophy"></i> Leaderboard</h1>
-                    </div>
-                </div>
-            </header>
-        `;
-
-        if (usersData.length >= 3) {
-            const p1 = usersData[0], p2 = usersData[1], p3 = usersData[2];
-            newHTML += `
-            <div class="LeaderboardPodium">
-                <a href="${p2.link}" class="LeaderboardPodium-place LeaderboardPodium-place--2">
-                    <div class="LeaderboardPodium-medal LeaderboardPodium-medal--silver"><span class="LeaderboardPodium-rankNumber">#2</span></div>
-                    <div class="LeaderboardPodium-avatar"><img class="Avatar" src="${p2.avatar}"></div>
-                    <div class="LeaderboardPodium-name">${p2.name}</div>
-                    <div class="LeaderboardPodium-points">${p2.points}</div>
-                </a>
-                <a href="${p1.link}" class="LeaderboardPodium-place LeaderboardPodium-place--1">
-                    <div class="LeaderboardPodium-medal LeaderboardPodium-medal--gold"><i class="fas fa-crown"></i><span class="LeaderboardPodium-rankNumber">#1</span></div>
-                    <div class="LeaderboardPodium-avatar"><img class="Avatar" src="${p1.avatar}"></div>
-                    <div class="LeaderboardPodium-name">${p1.name}</div>
-                    <div class="LeaderboardPodium-points">${p1.points}</div>
-                </a>
-                <a href="${p3.link}" class="LeaderboardPodium-place LeaderboardPodium-place--3">
-                    <div class="LeaderboardPodium-medal LeaderboardPodium-medal--bronze"><span class="LeaderboardPodium-rankNumber">#3</span></div>
-                    <div class="LeaderboardPodium-avatar"><img class="Avatar" src="${p3.avatar}"></div>
-                    <div class="LeaderboardPodium-name">${p3.name}</div>
-                    <div class="LeaderboardPodium-points">${p3.points}</div>
-                </a>
-            </div>`;
-        }
-
-        const contenders = usersData.slice(3, 10);
-        if (contenders.length > 0) {
-            newHTML += `
-            <div class="LeaderboardContenders">
-                <h3 class="LeaderboardContenders-title"><i class="fas fa-medal"></i> Top Contenders</h3>
-                <div class="LeaderboardContenders-grid">`;
-            contenders.forEach(user => {
-                newHTML += `
-                    <a href="${user.link}" class="LeaderboardContenders-card">
-                        <span class="LeaderboardContenders-rank">#${user.rank}</span>
-                        <div class="LeaderboardContenders-avatar"><img class="Avatar" src="${user.avatar}"></div>
-                        <div>
-                            <div class="LeaderboardContenders-name">${user.name}</div>
-                            <div class="LeaderboardContenders-points">${user.points}</div>
-                        </div>
-                    </a>`;
-            });
-            newHTML += `</div></div>`;
-        }
-
-        const honorable = usersData.slice(10);
-        if (honorable.length > 0) {
-            newHTML += `
-            <div class="LeaderboardHonorable">
-                <h3 class="LeaderboardHonorable-title"><i class="fas fa-list-ol"></i> Honorable Mentions</h3>
-                <div class="LeaderboardHonorable-grid">`;
-            honorable.forEach(user => {
-                newHTML += `
-                    <a href="${user.link}" class="LeaderboardItem">
-                        <span class="LeaderboardItem-rank">#${user.rank}</span>
-                        <span class="LeaderboardItem-avatar"><img class="Avatar" src="${user.avatar}"></span>
-                        <div>
-                            <div class="LeaderboardItem-name">${user.name}</div>
-                            <div class="LeaderboardItem-points">${user.points}</div>
-                        </div>
-                    </a>`;
-            });
-            newHTML += `</div></div>`;
-        }
-
-        newHTML += `</div>`;
-        
-        indexPage.insertAdjacentHTML('afterbegin', newHTML);
-    }
-
-    window.addEventListener('DOMContentLoaded', renderLeaderboard);
-    window.addEventListener('popstate', renderLeaderboard);
-    
-    const observer = new MutationObserver(() => {
-        if (window.location.pathname.includes('/rankings')) {
-            renderLeaderboard();
-        }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    setInterval(renderLeaderboard, 1000);
-})();
-</script>
-
-<!-- Plyr CSS & JS inladen via officiële CDN -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.css" />
-<script src="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.polyfilled.js"></script>
-
-<script>
-(function() {
-  function processVideos() {
-    const posts = document.querySelectorAll('.Post-body');
-
-    posts.forEach(post => {
-      // 1. Zoek naar alle FoF upload knoppen/links met een download URL
-      const fofElements = post.querySelectorAll('.ButtonGroup, .fof-upload-download, div[data-fof-upload-download-uuid]');
-
-      fofElements.forEach(el => {
-        if (el.dataset.plyrDone) return;
-
-        const text = (el.innerText || el.textContent || '').toLowerCase();
-        if (text.includes('.mp4')) {
-          // Zoek het <a> tagje op dat FoF Upload heeft gegenereerd
-          const linkTag = el.querySelector('a') || el.closest('a') || el.querySelector('.Button');
-          let videoSrc = null;
-
-          if (linkTag && linkTag.href) {
-            videoSrc = linkTag.href;
-          } else {
-            // Als er geen direct a-tag is, pakken we de 'data-fof-upload-download-uuid'
-            const uuid = el.getAttribute('data-fof-upload-download-uuid');
-            if (uuid) {
-              videoSrc = window.location.origin + '/assets/files/' + uuid;
-            }
-          }
-
-          if (videoSrc) {
-            el.dataset.plyrDone = "true";
-            replaceWithPlyr(el, videoSrc);
-          }
-        }
-      });
-
-      // 2. Zoek naar gewone direct geplakte .mp4 links in berichten
-      const links = post.querySelectorAll('a[href*=".mp4"]');
-      links.forEach(link => {
-        if (link.dataset.plyrDone) return;
-        link.dataset.plyrDone = "true";
-        replaceWithPlyr(link, link.href);
-      });
-    });
-  }
-
-  function replaceWithPlyr(targetEl, videoSrc) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'chatsong-video-wrapper';
-    wrapper.style.cssText = 'margin: 14px 0; border-radius: 12px; overflow: hidden; background: #000; box-shadow: 0 4px 15px rgba(0,0,0,0.15);';
-
-    const videoNode = document.createElement('video');
-    videoNode.className = 'cs-plyr';
-    videoNode.setAttribute('controls', '');
-    videoNode.setAttribute('playsinline', '');
-    videoNode.setAttribute('preload', 'auto');
-
-    const sourceNode = document.createElement('source');
-    sourceNode.src = videoSrc;
-    sourceNode.type = 'video/mp4';
-
-    videoNode.appendChild(sourceNode);
-    wrapper.appendChild(videoNode);
-
-    // Pak de hele knoppengroep om te vervangen
-    let elementToReplace = targetEl;
-    if (targetEl.classList.contains('Button') && targetEl.closest('.ButtonGroup')) {
-      elementToReplace = targetEl.closest('.ButtonGroup');
-    }
-
-    if (elementToReplace && elementToReplace.parentNode) {
-      elementToReplace.parentNode.replaceChild(wrapper, elementToReplace);
-
-      // Activeer Plyr op de video
-      if (window.Plyr) {
-        new Plyr(videoNode, {
-          controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen']
-        });
-      }
-    }
-  }
-
-  document.addEventListener('DOMContentLoaded', processVideos);
-
-  const observer = new MutationObserver(processVideos);
-  window.addEventListener('load', () => {
-    const target = document.getElementById('app') || document.getElementById('content');
-    if (target) {
-      observer.observe(target, { childList: true, subtree: true });
-    }
-  });
-})();
-</script>
-
-
-(function() {
-  function convertAllMediaLinks() {
-    const containers = document.querySelectorAll('.Post-body, .PrivateMessage-body, .MessageBody, .item-content, .Comment');
-
-    containers.forEach(container => {
-      
-      // --- 1. SOUNDCLOUD FIX ---
-      const scElements = container.querySelectorAll('a[href*="soundcloud.com"], .LinkPreview a[href*="soundcloud.com"], iframe[src*="soundcloud.com"]');
-      scElements.forEach(el => {
-        let rawUrl = el.href || el.src;
-        const targetBox = el.closest('.LinkPreview') || el.closest('iframe') || el;
-        
-        if (!rawUrl || targetBox.dataset.mediaDone) return;
-        targetBox.dataset.mediaDone = "true";
-
-        const iframe = document.createElement('iframe');
-        iframe.src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(rawUrl)}&color=%238a2be2&auto_play=false&hide_related=true&show_comments=true&show_user=true&show_reposts=false&show_teaser=false`;
-        iframe.style.cssText = 'width: 100%; max-width: 100%; height: 166px; border-radius: 12px; border: none; margin: 10px 0; background: transparent; display: block;';
-        iframe.setAttribute('scrolling', 'no');
-        iframe.setAttribute('frameborder', 'no');
-        iframe.setAttribute('allow', 'autoplay');
-
-        if (targetBox.parentNode) {
-          targetBox.parentNode.replaceChild(iframe, targetBox);
-        }
-      });
-
-      // --- 2. YOUTUBE SHORTS ---
-      const ytElements = container.querySelectorAll('a[href*="youtube.com/shorts/"], a[href*="youtu.be/"], .LinkPreview a[href*="youtube.com/shorts/"], .LinkPreview a[href*="youtu.be/"]');
-      ytElements.forEach(link => {
-        const targetBox = link.closest('.LinkPreview') || link;
-        if (targetBox.dataset.mediaDone) return;
-
-        let videoId = null;
-        const href = link.href;
-
-        if (href.includes('/shorts/')) {
-          videoId = href.split('/shorts/')[1].split('?')[0].split('/')[0];
-        } else if (href.includes('youtu.be/')) {
-          videoId = href.split('youtu.be/')[1].split('?')[0].split('/')[0];
-        }
-
-        if (videoId) {
-          targetBox.dataset.mediaDone = "true";
-          const iframe = document.createElement('iframe');
-          iframe.src = `https://www.youtube.com/embed/${videoId}`;
-          iframe.style.cssText = 'width: 100%; max-width: 340px; height: 580px; border-radius: 12px; border: none; margin: 10px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: block;';
-          iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
-          iframe.setAttribute('allowfullscreen', 'true');
-
-          if (targetBox.parentNode) {
-            targetBox.parentNode.replaceChild(iframe, targetBox);
-          }
-        }
-      });
-
-      // --- 3. TIKTOK ---
-      const tiktokElements = container.querySelectorAll('a[href*="tiktok.com/"], .LinkPreview a[href*="tiktok.com/"]');
-      tiktokElements.forEach(link => {
-        const targetBox = link.closest('.LinkPreview') || link;
-        if (targetBox.dataset.mediaDone) return;
-
-        const matches = link.href.match(/video\/(\d+)/) || link.href.match(/\/v\/(\d+)/);
-        if (matches && matches[1]) {
-          const videoId = matches[1];
-          targetBox.dataset.mediaDone = "true";
-
-          const iframe = document.createElement('iframe');
-          iframe.src = `https://www.tiktok.com/embed/v2/${videoId}`;
-          iframe.style.cssText = 'width: 100%; max-width: 325px; height: 580px; border-radius: 12px; border: none; margin: 10px 0; display: block;';
-
-          if (targetBox.parentNode) {
-            targetBox.parentNode.replaceChild(iframe, targetBox);
-          }
-        }
-      });
-
-      // --- 4. SPOTIFY ---
-      const spotifyElements = container.querySelectorAll('a[href*="open.spotify.com/"], .LinkPreview a[href*="open.spotify.com/"]');
-      spotifyElements.forEach(link => {
-        const targetBox = link.closest('.LinkPreview') || link;
-        if (targetBox.dataset.mediaDone) return;
-
-        let url = link.href;
-        if (url.includes('open.spotify.com/')) {
-          targetBox.dataset.mediaDone = "true";
-          
-          let cleanUrl = url.split('?')[0];
-          const embedUrl = cleanUrl.replace('open.spotify.com/', 'open.spotify.com/embed/');
-
-          const iframe = document.createElement('iframe');
-          iframe.src = embedUrl;
-          const frameHeight = embedUrl.includes('/concert/') || embedUrl.includes('/album/') || embedUrl.includes('/playlist/') ? '380px' : '152px';
-          
-          iframe.style.cssText = `width: 100%; max-width: 100%; height: ${frameHeight}; border-radius: 12px; border: none; margin: 10px 0; display: block;`;
-          iframe.setAttribute('allow', 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture');
-          iframe.setAttribute('loading', 'lazy');
-
-          if (targetBox.parentNode) {
-            targetBox.parentNode.replaceChild(iframe, targetBox);
-          }
-        }
-      });
-
-    });
-  }
-
-  document.addEventListener('DOMContentLoaded', convertAllMediaLinks);
-  window.addEventListener('flarum:page:changed', convertAllMediaLinks);
-
-  const observer = new MutationObserver(convertAllMediaLinks);
-  window.addEventListener('load', () => {
-    const target = document.getElementById('app') || document.body;
-    if (target) {
-      observer.observe(target, { childList: true, subtree: true });
-    }
-  });
-})();
